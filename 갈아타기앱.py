@@ -132,31 +132,37 @@ if st.session_state.show_home and st.session_state.show_move:
     df_comp = df_comp.rename(columns=rename_dict)
 
     styled = (
-        df_comp.style
-            .format(precision=1)
-            .set_properties(**{
-                "text-align": "center",
-                "font-size": "12px",
-                "white-space": "nowrap",
-                "overflow": "hidden",
-                "text-overflow": "ellipsis"
-            })
-            .set_table_styles([
-                {"selector": "th", "props": [
-                    ("text-align", "center"),
-                    ("white-space", "normal"),
-                    ("font-size", "12px"),
-                    ("max-width", "100px"),
-                    ("word-break", "break-word")
-                ]},
-                {"selector": "td", "props": [
-                    ("max-width", "80px")
-                ]}
-            ])
-            .map(lambda v: "font-weight: bold" if isinstance(v, (int, float)) else "", subset=["가격차이 (억)"])
-            .set_table_attributes('style="table-layout: fixed; width: 100%;"')
-            .hide(axis="index")
-    )
+    df_comp.style
+        .format(precision=1)
+        .set_properties(**{
+            "text-align": "center",
+            "font-size": "10px",
+            "white-space": "nowrap",
+            "overflow": "hidden",
+            "text-overflow": "ellipsis"
+        })
+        .set_table_styles([
+            {"selector": "th", "props": [
+                ("max-width", "70px"),
+                ("font-size", "10px"),
+                ("word-break", "break-word"),
+                ("text-align", "center"),
+                ("white-space", "normal"),
+            ]},
+            {"selector": "td", "props": [
+                ("max-width", "60px"),
+                ("font-size", "10px"),
+                ("text-align", "center"),
+                ("white-space", "nowrap"),
+                ("overflow", "hidden"),
+                ("text-overflow", "ellipsis")
+            ]}
+        ])
+        .map(lambda v: "font-weight: bold" if isinstance(v, (int, float)) else "", subset=["가격차이 (억)"])
+        .set_table_attributes('style="table-layout: fixed; width: 100%;"')
+        .hide(axis="index")
+)
+
 
     st.write(styled.to_html(), unsafe_allow_html=True)
 
