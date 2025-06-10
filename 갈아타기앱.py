@@ -9,7 +9,6 @@ import datetime
 rcParams['font.family'] = 'Malgun Gothic'
 rcParams['axes.unicode_minus'] = False
 
-# 데이터 로드 (캐시)
 @st.cache_data
 def load_data():
     df = pd.read_excel("앱만들기용 단지데이터 0610버전.xlsx", sheet_name="Sheet1")
@@ -19,13 +18,11 @@ def load_data():
 df = load_data()
 year_cols = [c for c in df.columns if isinstance(c, int)]
 
-# 세션 초기화
 st.session_state.setdefault('recent_home', None)
 st.session_state.setdefault('recent_move', None)
 st.session_state.setdefault('show_home', False)
 st.session_state.setdefault('show_move', False)
 
-# CAGR 계산 함수: 첫 데이터 연도와 마지막 데이터 연도의 차이를 사용
 def calculate_cagr(series):
     valid = series.dropna()
     if len(valid) < 2:
@@ -39,7 +36,6 @@ def calculate_cagr(series):
         return None
     return (end / start) ** (1/period) - 1
 
-# 예측 가격 생성 함수
 def predict_prices(start_price, start_year, cagr, end_year=2032):
     pred = {start_year: start_price}
     if cagr is None:
@@ -48,7 +44,6 @@ def predict_prices(start_price, start_year, cagr, end_year=2032):
         pred[y] = pred[y-1] * (1 + cagr)
     return pred
 
-# 목표 도달 날짜 계산 함수
 def estimate_target_date(start_price, start_year, cagr, goal):
     if goal * 10000 <= start_price:
         return f"{start_year}년 1월 1일"
@@ -62,10 +57,8 @@ def estimate_target_date(start_price, start_year, cagr, goal):
     target = dt0 + datetime.timedelta(days=days)
     return target.strftime("%Y년 %m월 %d일")
 
-# 앱 제목
 st.title("🏠 GARATA")
 
-# 입력: 내집 / 갈집
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("내집")
@@ -87,7 +80,6 @@ with col2:
         st.session_state.recent_move = move_sel
         st.session_state.show_move = True
 
-# 사용법 · 개발자 정보
 i1, i2 = st.columns([3, 2])
 with i1:
     st.markdown(
@@ -104,21 +96,18 @@ with i2:
         "📱 010-3065-1780"
     )
 
-# 내집 목표 도달 예상일 표시
 if st.session_state.show_home and st.session_state.recent_home:
     home = st.session_state.recent_home
     date_h = estimate_target_date(신고가_home * 10000, 신고년_home,
                                    calculate_cagr(df.loc[home]), 목표가_home)
     st.markdown(f"▶ **내집 목표 도달 예상일:** {date_h}")
 
-# 갈집 목표 도달 예상일 표시
 if st.session_state.show_move and st.session_state.recent_move:
     move = st.session_state.recent_move
     date_m = estimate_target_date(신고가_move * 10000, 신고년_move,
                                    calculate_cagr(df.loc[move]), 목표가_move)
     st.markdown(f"▶ **갈집 목표 도달 예상일:** {date_m}")
 
-# 통합 표 & 그래프 (둘 다 눌렀을 때)
 if st.session_state.show_home and st.session_state.show_move:
     home = st.session_state.recent_home
     move = st.session_state.recent_move
@@ -135,22 +124,45 @@ if st.session_state.show_home and st.session_state.show_move:
     })
     df_comp["가격차이 (억)"] = df_comp[f"{move} (억)"] - df_comp[f"{home} (억)"]
 
-    # 스타일 적용: 중앙 정렬, 소수점 한자리 포맷, 가격차이 볼드
+    rename_dict = {
+        f"{home} (억)": f"{home.replace(' ', '<br>')} (억)",
+        f"{move} (억)": f"{move.replace(' ', '<br>')} (억)",
+        "가격차이 (억)": "가격차이 (억)"
+    }
+    df_comp = df_comp.rename(columns=rename_dict)
+
     styled = (
         df_comp.style
             .format(precision=1)
-            .set_properties(**{"text-align": "center"})
-            .set_table_styles([{"selector": "th", "props": [("text-align", "center")] }])
-            .applymap(lambda v: "font-weight: bold" if isinstance(v, (int, float)) else "",
-                      subset=["가격차이 (억)"])
+            .set_properties(**{
+                "text-align": "center",
+                "font-size": "12px",
+                "white-space": "nowrap",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis"
+            })
+            .set_table_styles([
+                {"selector": "th", "props": [
+                    ("text-align", "center"),
+                    ("white-space", "normal"),
+                    ("font-size", "12px"),
+                    ("max-width", "100px"),
+                    ("word-break", "break-word")
+                ]},
+                {"selector": "td", "props": [
+                    ("max-width", "80px")
+                ]}
+            ])
+            .map(lambda v: "font-weight: bold" if isinstance(v, (int, float)) else "", subset=["가격차이 (억)"])
+            .set_table_attributes('style="table-layout: fixed; width: 100%;"')
+            .hide(axis="index")
     )
 
-    st.dataframe(styled, use_container_width=True)
+    st.write(styled.to_html(), unsafe_allow_html=True)
 
-    # 그래프 출력
     fig, ax = plt.subplots(figsize=(10, 4))
     for label, color in [(home, "#FF2DF1"), (move, "#00CAFF")]:
-        vals = df_comp[f"{label} (억)"].astype(float)
+        vals = df_comp[f"{label.replace(' ', '<br>')} (억)"].astype(float)
         ax.plot(df_comp["연도"], vals, marker='o', label=label, color=color)
         for x, y in zip(df_comp["연도"], vals):
             ax.text(x, y, f"{y:.1f}", ha='center', va='bottom', fontsize=8)
